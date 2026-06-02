@@ -19,9 +19,13 @@ function node_mul(y::AbstractArray{T, 3}, w::AbstractMatrix{T}) where {T}
     output = reshape(w, size(w, 1), size(w, 2), 1) .* y
     return reshape(sum(output; dims = 1), size(w, 2), size(y, 3))
 end
+
 function node_mul(y::AbstractArray{T, 4}, w::AbstractMatrix{T}) where {T}
-    output = reshape(w, size(w, 1), size(w, 2), 1, 1) .* y
-    return reshape(sum(output; dims = 1), size(w, 2), size(y, 3), size(y, 4))
+    in_, out_, s_, b_ = size(y)
+    output = reshape(w, in_, out_, 1, 1) .* y
+    flat = reshape(output, in_, out_ * s_ * b_)
+    summed = reshape(fill(one(T), 1, in_), 1, in_) * flat
+    return reshape(summed, out_, s_, b_)
 end
 
 const NORM_EPS = Float32(1.0e-5)
