@@ -19,8 +19,8 @@ rng = Random.default_rng()
 _, st = Lux.setup(rng, model)
 
 model_file = joinpath("logs", model_name, "trained_models", "model_1.jld2")
-ps = JLD2.load(model_file, "ps") |> dev
-st = st |> dev
+ps = JLD2.load(model_file, "ps") |> Lux.f32 |> dev
+st = st |> Lux.f32 |> dev
 
 a_first, u_first = first(test_loader)
 model_compiled = @compile model(a_first, ps, Lux.testmode(st))
