@@ -38,7 +38,7 @@ function get_darcy_loader(batch_size::Int; dev = MLDataDevices.cpu_device())
     train_data = dev((a_train, u_train))
     test_data = dev((a_test, u_test))
 
-    train_loader = DataLoader(train_data; batchsize = batch_size, shuffle = true)
-    test_loader = DataLoader(test_data; batchsize = batch_size, shuffle = false)
+    train_loader = DataLoader(train_data; batchsize = batch_size, shuffle = true, partial = false)
+    test_loader = DataLoader(test_data; batchsize = batch_size, shuffle = false, partial = false)
     return train_loader, test_loader
 end
