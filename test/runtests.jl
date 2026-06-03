@@ -121,11 +121,11 @@ end
 end
 
 @testset "FNO train step" begin
-    cfg = FNOConfig(16, 4, 4, 2, "gelu", 1.0f-3, 10, 0.8f0, 1.0f-4, 2, 1, 2.0f0)
+    cfg = FNOConfig(8, 4, 4, 2, "gelu", 1.0f-3, 10, 0.8f0, 1.0f-4, 2, 1, 2.0f0)
     model = create_model(cfg)
     ps, st = Lux.setup(RNG, model)
-    x = randn(Float32, 16, 16, 1, 2)
-    y = randn(Float32, 16, 16, 1, 2)
+    x = randn(Float32, 32, 32, 1, 2)
+    y = randn(Float32, 32, 32, 1, 2)
     loss, test_loss = _train_step(model, ps, st, x, y)
     @test isfinite(Float32(loss))
     @test isfinite(Float32(test_loss))
