@@ -31,18 +31,17 @@ function (m::SpectralConv2d)(x, ps, st)
     modes1 = m.modes1
     modes2 = m.modes2
 
-    out_ft_1 = compl_mul2d(x_ft[1:modes1, 1:modes2, :, :], ps.w1)
-    pad1 = zeros(ComplexF32, modes1, W - modes2, m.out_channels, batch) # Pad to full width
-    out_ft_1 = cat(out_ft_1, pad1; dims = 2)
+    # rfft axis (dim 1): +ve low freqs at [1:modes1]
+    # full-FFT axis (dim 2): +ve low [1:modes2] and -ve low [end-modes2+1:end]
+    out_pp = compl_mul2d(x_ft[1:modes1, 1:modes2, :, :], ps.w1)
+    out_pn = compl_mul2d(x_ft[1:modes1, (end - modes2 + 1):end, :, :], ps.w2)
 
-    out_ft_2 = compl_mul2d(x_ft[(end - modes1 + 1):end, 1:modes2, :, :], ps.w2)
-    pad2 = zeros(ComplexF32, modes1, W - modes2, m.out_channels, batch)
-    out_ft_2 = cat(out_ft_2, pad2; dims = 2)
+    mid_cols = W - 2 * modes2
+    mid_pad_w = zeros(ComplexF32, modes1, mid_cols, m.out_channels, batch)
+    out_low = cat(out_pp, mid_pad_w, out_pn; dims = 2)
 
-    # Zero-pad middle freqs to reconstruct full rfft shape
-    mid_rows = ft_h - 2 * modes1
-    mid_pad = zeros(ComplexF32, mid_rows, W, m.out_channels, batch)
-    out_ft = cat(out_ft_1, mid_pad, out_ft_2; dims = 1)
+    hi_pad = zeros(ComplexF32, ft_h - modes1, W, m.out_channels, batch)
+    out_ft = cat(out_low, hi_pad; dims = 1)
 
     return irfft(out_ft, H, [1, 2]), st
 end
