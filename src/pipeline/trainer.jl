@@ -1,5 +1,5 @@
 function step_decay(epoch, lr, step, decay, min_lr)
-    return max(lr * decay^(epoch / step), min_lr)
+    return Float32(max(lr * decay^(epoch / step), min_lr))
 end
 
 function compile_eval(model, ps, st, test_loader, loss_fn)
