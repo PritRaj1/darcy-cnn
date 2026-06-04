@@ -37,9 +37,10 @@ function (m::SpectralConv2d)(x, ps, st)
     out_pp = compl_mul2d(x_ft[1:modes1, 1:modes2, :, :], ps.w1)
     out_pn = compl_mul2d(x_ft[1:modes1, (end - modes2 + 1):end, :, :], ps.w2)
 
-    out_ft = fill!(similar(x_ft, ft_h, W, m.out_channels, batch), zero(eltype(x_ft)))
-    out_ft[1:modes1, 1:modes2, :, :] = out_pp
-    out_ft[1:modes1, (end - modes2 + 1):end, :, :] = out_pn
+    mid_pad_w = zeros(ComplexF32, modes1, W - 2 * modes2, m.out_channels, batch)
+    out_low = cat(out_pp, mid_pad_w, out_pn; dims = 2)
+    hi_pad = zeros(ComplexF32, ft_h - modes1, W, m.out_channels, batch)
+    out_ft = cat(out_low, hi_pad; dims = 1)
     return irfft(out_ft, H, [1, 2]), st
 end
 
