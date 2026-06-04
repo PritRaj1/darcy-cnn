@@ -17,9 +17,9 @@ end
 function compl_mul2d(input, weights)
     m1, m2, ic, b = size(input)
     oc = size(weights, 4)
-    inp_p = permutedims(reshape(input, m1 * m2, ic, b), (2, 3, 1))  # (in, batch, mm)
-    wts_p = permutedims(reshape(weights, m1 * m2, ic, oc), (2, 3, 1))  # (in, out,   mm)
-    out_p = NNlib.batched_mul(NNlib.batched_adjoint(wts_p), inp_p)     # (out, batch, mm)
+    inp_p = permutedims(reshape(input, m1 * m2, ic, b), (2, 3, 1))
+    wts_p = permutedims(reshape(weights, m1 * m2, ic, oc), (2, 3, 1))
+    out_p = NNlib.batched_mul(NNlib.batched_transpose(wts_p), inp_p)
     return reshape(permutedims(out_p, (3, 1, 2)), m1, m2, oc, b)
 end
 
