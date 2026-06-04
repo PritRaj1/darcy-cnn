@@ -65,20 +65,18 @@ function log_csv(epoch, train_loss, test_loss, bic, elapsed, file_name)
     end
 end
 
-# FNO grid: creates coord grid
+# FNO grid: (NX, NY, 2, 1) coordinate channels
 const NX = 32
 const NY = 32
 const GRID_XY = let
-    gx = Float32.(reshape(range(0, 1, NX), 1, NX, 1, 1))
-    gy = Float32.(reshape(range(0, 1, NY), 1, 1, NY, 1))
-    cat(repeat(gx, 1, 1, NY, 1), repeat(gy, 1, NX, 1, 1); dims = 1)
+    gx = Float32.(reshape(range(0, 1, NX), NX, 1, 1, 1))
+    gy = Float32.(reshape(range(0, 1, NY), 1, NY, 1, 1))
+    cat(repeat(gx, 1, NY, 1, 1), repeat(gy, NX, 1, 1, 1); dims = 3)
 end
 
 function get_grid(x)
-    batch_size = size(x, 4)
-    x_reshaped = permutedims(x, (3, 1, 2, 4))                 # (C, NX, NY, B)
-    grid = repeat(GRID_XY, 1, 1, 1, batch_size)               # (2, NX, NY, B), one alloc
-    return vcat(x_reshaped, grid)
+    grid = repeat(GRID_XY, 1, 1, 1, size(x, 4))
+    return cat(x, grid; dims = 3)
 end
 
 _conv_out_dim(in_dim, k, pad, stride, dilation) =
