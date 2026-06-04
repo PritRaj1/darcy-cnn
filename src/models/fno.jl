@@ -6,14 +6,9 @@ end
 
 function FNO(cfg::FNOConfig)
     input_layer = Lux.Conv((1, 1), 3 => cfg.width)
-    blocks = [
-        FNOBlock(
-                cfg.width, cfg.modes1, cfg.modes2,
-                i < cfg.num_blocks ? cfg.activation : "identity",
-            )
-            for i in 1:(cfg.num_blocks)
-    ]
-    hidden_layers = Lux.Chain(blocks...)
+    hidden_layers = Lux.Chain(
+        (FNOBlock(cfg.width, cfg.modes1, cfg.modes2, cfg.activation) for _ in 1:(cfg.num_blocks))...,
+    )
     output_layer = FNO_MLP(cfg.width, 1, cfg.width * 4, cfg.activation)
     return FNO(input_layer, hidden_layers, output_layer)
 end
