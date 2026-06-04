@@ -8,6 +8,7 @@ const ACTIVATION_MAP = Dict{String, Function}(
     "swish" => NNlib.hardswish,
     "gelu" => NNlib.gelu,
     "selu" => NNlib.selu,
+    "identity" => identity,
 )
 
 get_activation(name::AbstractString) = ACTIVATION_MAP[name]

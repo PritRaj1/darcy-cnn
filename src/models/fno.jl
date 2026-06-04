@@ -5,11 +5,15 @@ struct FNO{I, H, O} <: Lux.AbstractLuxContainerLayer{(:input_layer, :hidden_laye
 end
 
 function FNO(cfg::FNOConfig)
-    # 1×1 Conv is identical to Dense, but no permute needed
-    input_layer = Lux.Conv((1, 1), 3 => cfg.width, get_activation(cfg.activation))
-    hidden_layers = Lux.Chain(
-        (FNOBlock(cfg.width, cfg.modes1, cfg.modes2, cfg.activation) for _ in 1:(cfg.num_blocks))...,
-    )
+    input_layer = Lux.Conv((1, 1), 3 => cfg.width)
+    blocks = [
+        FNOBlock(
+                cfg.width, cfg.modes1, cfg.modes2,
+                i < cfg.num_blocks ? cfg.activation : "identity",
+            )
+            for i in 1:(cfg.num_blocks)
+    ]
+    hidden_layers = Lux.Chain(blocks...)
     output_layer = FNO_MLP(cfg.width, 1, cfg.width * 4, cfg.activation)
     return FNO(input_layer, hidden_layers, output_layer)
 end

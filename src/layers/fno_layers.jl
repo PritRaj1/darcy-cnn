@@ -65,23 +65,20 @@ function (m::FNO_MLP)(x, ps, st)
 end
 
 
-struct FNOBlock{S, M, C} <: Lux.AbstractLuxContainerLayer{(:spect_conv, :mlp, :conv)}
+struct FNOBlock{S, C} <: Lux.AbstractLuxContainerLayer{(:spect_conv, :conv)}
     spect_conv::S
-    mlp::M
     conv::C
     activation::Function
 end
 
 function FNOBlock(width::Int, modes1::Int, modes2::Int, activation::String)
     spect_conv = SpectralConv2d(width, width, modes1, modes2)
-    mlp = FNO_MLP(width, width, width, activation)
     conv = Lux.Conv((1, 1), width => width)
-    return FNOBlock(spect_conv, mlp, conv, get_activation(activation))
+    return FNOBlock(spect_conv, conv, get_activation(activation))
 end
 
 function (m::FNOBlock)(x, ps, st)
-    x2, st_c = m.conv(x, ps.conv, st.conv)
-    x_s, st_s = m.spect_conv(x, ps.spect_conv, st.spect_conv)
-    x_m, st_m = m.mlp(x_s, ps.mlp, st.mlp)
-    return m.activation.(x_m .+ x2), (spect_conv = st_s, mlp = st_m, conv = st_c)
+    x_w, st_c = m.conv(x, ps.conv, st.conv)             # W · v_l (pointwise skip)
+    x_k, st_s = m.spect_conv(x, ps.spect_conv, st.spect_conv)  # K · v_l (spectral)
+    return m.activation.(x_k .+ x_w), (spect_conv = st_s, conv = st_c)
 end

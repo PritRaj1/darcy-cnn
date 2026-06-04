@@ -15,7 +15,7 @@ function CNN(cfg::CNNConfig)
         Lux.ConvTranspose((3, 3), 8h => 4h, phi; pad = 1),
         Lux.ConvTranspose((3, 3), 4h => 2h, phi; pad = 1),
         Lux.ConvTranspose((3, 3), 2h => h, phi; pad = 1),
-        Lux.ConvTranspose((3, 3), h => 1, phi; pad = 1),
+        Lux.ConvTranspose((3, 3), h => 1; pad = 1),
     )
     return CNN(encoder, decoder)
 end
