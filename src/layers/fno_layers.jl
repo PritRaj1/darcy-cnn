@@ -15,11 +15,12 @@ function Lux.initialparameters(rng::AbstractRNG, l::SpectralConv2d)
 end
 
 function compl_mul2d(input, weights)
-    # einsum: xyib,xyio->xyob
-    x, y, i, b = size(input)
-    in_r = reshape(input, x, y, i, 1, b)
-    w_r = reshape(weights, size(weights)..., 1)
-    return dropdims(sum(in_r .* w_r; dims = 3); dims = 3)
+    m1, m2, ic, b = size(input)
+    oc = size(weights, 4)
+    inp_p = permutedims(reshape(input, m1 * m2, ic, b), (2, 3, 1))  # (in, batch, mm)
+    wts_p = permutedims(reshape(weights, m1 * m2, ic, oc), (2, 3, 1))  # (in, out,   mm)
+    out_p = NNlib.batched_mul(NNlib.batched_adjoint(wts_p), inp_p)     # (out, batch, mm)
+    return reshape(permutedims(out_p, (3, 1, 2)), m1, m2, oc, b)
 end
 
 function (m::SpectralConv2d)(x, ps, st)
@@ -36,13 +37,9 @@ function (m::SpectralConv2d)(x, ps, st)
     out_pp = compl_mul2d(x_ft[1:modes1, 1:modes2, :, :], ps.w1)
     out_pn = compl_mul2d(x_ft[1:modes1, (end - modes2 + 1):end, :, :], ps.w2)
 
-    mid_cols = W - 2 * modes2
-    mid_pad_w = zeros(ComplexF32, modes1, mid_cols, m.out_channels, batch)
-    out_low = cat(out_pp, mid_pad_w, out_pn; dims = 2)
-
-    hi_pad = zeros(ComplexF32, ft_h - modes1, W, m.out_channels, batch)
-    out_ft = cat(out_low, hi_pad; dims = 1)
-
+    out_ft = fill!(similar(x_ft, ft_h, W, m.out_channels, batch), zero(eltype(x_ft)))
+    out_ft[1:modes1, 1:modes2, :, :] = out_pp
+    out_ft[1:modes1, (end - modes2 + 1):end, :, :] = out_pn
     return irfft(out_ft, H, [1, 2]), st
 end
 

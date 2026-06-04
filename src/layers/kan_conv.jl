@@ -20,22 +20,23 @@ function KANConv2D(
 end
 
 function (c::KANConv2D)(x, ps, st)
-    n_channels = size(x, 3)
-    batch_size = size(x, 4)
+    H, W = size(x, 1), size(x, 2)
+    in_c, batch_size = size(x, 3), size(x, 4)
+    kh, kw = c.kernel_size
+    out_h = _conv_out_dim(H, kh, c.padding, c.stride, c.dilation)
+    out_w = _conv_out_dim(W, kw, c.padding, c.stride, c.dilation)
 
-    patches = unfold(
-        x, c.kernel_size;
-        stride = c.stride, padding = c.padding, dilation = c.dilation,
+    # unfold out: (out_h * out_w, kh * kw * in_c, batch)
+    patches = NNlib.unfold(
+        x, (kh, kw, in_c, 1);
+        stride = c.stride, pad = c.padding, dilation = c.dilation,
     )
-    h, w = size(patches, 3), size(patches, 4)
-    patches = reshape(patches, prod(c.kernel_size) * n_channels, h * w, batch_size)
+    patches = permutedims(patches, (2, 1, 3))  # (kh*kw*in_c, out_h*out_w, batch)
 
     out, st_k = c.dense_kernel(patches, ps.dense_kernel, st.dense_kernel)
     out_channels = size(out, 1)
-    out = reshape(out, out_channels, h, w, batch_size)
-    out = permutedims(out, (2, 3, 1, 4))
-
-    return out, (dense_kernel = st_k,)
+    out = reshape(out, out_channels, out_h, out_w, batch_size)
+    return permutedims(out, (2, 3, 1, 4)), (dense_kernel = st_k,)
 end
 
 
@@ -61,21 +62,21 @@ function KANConvTranspose2D(
 end
 
 function (c::KANConvTranspose2D)(x, ps, st)
-    n_channels = size(x, 3)
-    batch_size = size(x, 4)
-
     x_up = NNlib.upsample_nearest(x, (c.stride, c.stride))
-    patches = unfold(
-        x_up, c.kernel_size;
-        stride = c.stride, padding = c.padding, dilation = c.dilation,
+    H_up, W_up = size(x_up, 1), size(x_up, 2)
+    in_c, batch_size = size(x_up, 3), size(x_up, 4)
+    kh, kw = c.kernel_size
+    out_h = _conv_out_dim(H_up, kh, c.padding, c.stride, c.dilation)
+    out_w = _conv_out_dim(W_up, kw, c.padding, c.stride, c.dilation)
+
+    patches = NNlib.unfold(
+        x_up, (kh, kw, in_c, 1);
+        stride = c.stride, pad = c.padding, dilation = c.dilation,
     )
-    h, w = size(patches, 3), size(patches, 4)
-    patches = reshape(patches, prod(c.kernel_size) * n_channels, h * w, batch_size)
+    patches = permutedims(patches, (2, 1, 3))
 
     out, st_k = c.dense_kernel(patches, ps.dense_kernel, st.dense_kernel)
     out_channels = size(out, 1)
-    out = reshape(out, out_channels, h, w, batch_size)
-    out = permutedims(out, (2, 3, 1, 4))
-
-    return out, (dense_kernel = st_k,)
+    out = reshape(out, out_channels, out_h, out_w, batch_size)
+    return permutedims(out, (2, 3, 1, 4)), (dense_kernel = st_k,)
 end

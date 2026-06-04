@@ -18,21 +18,11 @@ function KANCNN(cfg::KANCNNConfig)
         KANConvTranspose2D(2h, h, (3, 3), dw[3], da[3]; padding = 1, norm = cfg.norm),
         KANConvTranspose2D(h, 1, (3, 3), dw[4], da[4]; padding = 1, norm = cfg.norm),
     ]
-    return KANCNN(_make_named_layers(encoder_layers), _make_named_layers(decoder_layers))
+    return KANCNN(Lux.Chain(encoder_layers...), Lux.Chain(decoder_layers...))
 end
 
 function (m::KANCNN)(x, ps, st)
-    st_enc = st.encoder
-    for k in keys(m.encoder)
-        x, st_enc_k = m.encoder[k](x, ps.encoder[k], st_enc[k])
-        st_enc = merge(st_enc, NamedTuple{(k,)}((st_enc_k,)))
-    end
-
-    st_dec = st.decoder
-    for k in keys(m.decoder)
-        x, st_dec_k = m.decoder[k](x, ps.decoder[k], st_dec[k])
-        st_dec = merge(st_dec, NamedTuple{(k,)}((st_dec_k,)))
-    end
-
+    x, st_enc = m.encoder(x, ps.encoder, st.encoder)
+    x, st_dec = m.decoder(x, ps.decoder, st.decoder)
     return x, (encoder = st_enc, decoder = st_dec)
 end

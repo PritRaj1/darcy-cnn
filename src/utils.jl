@@ -52,13 +52,12 @@ encode(n::MinMaxNormaliser, x) = (x .- n.lo) ./ (n.hi - n.lo)
 decode(n::MinMaxNormaliser, x) = x .* (n.hi - n.lo) .+ n.lo
 
 function loss_fcn(y_pred, y; p::Real = 2)
+    p == 2 && return sum(abs2, y_pred .- y)
     return sum(abs.(y_pred .- y) .^ p)
 end
 
-function BIC(model, n_samples::Int, loss_val::Real)
-    k = Lux.parameterlength(model)
-    return 2 * loss_val + k * log(n_samples)
-end
+BIC(k::Int, n_samples::Int, loss_val::Real) = 2 * loss_val + k * log(n_samples)
+BIC(model, n_samples::Int, loss_val::Real) = BIC(Lux.parameterlength(model), n_samples, loss_val)
 
 function log_csv(epoch, train_loss, test_loss, bic, elapsed, file_name)
     return open(file_name, "a") do f
@@ -66,62 +65,21 @@ function log_csv(epoch, train_loss, test_loss, bic, elapsed, file_name)
     end
 end
 
-# FNO grid: creates coord grids
+# FNO grid: creates coord grid
 const NX = 32
 const NY = 32
-const GRID_X = Float32.(reshape(range(0, 1, NX), 1, NX, 1, 1))
-const GRID_Y = Float32.(reshape(range(0, 1, NY), 1, 1, NY, 1))
+const GRID_XY = let
+    gx = Float32.(reshape(range(0, 1, NX), 1, NX, 1, 1))
+    gy = Float32.(reshape(range(0, 1, NY), 1, 1, NY, 1))
+    cat(repeat(gx, 1, 1, NY, 1), repeat(gy, 1, NX, 1, 1); dims = 1)
+end
 
 function get_grid(x)
     batch_size = size(x, 4)
-    gridx = repeat(GRID_X, 1, 1, NY, batch_size)
-    gridy = repeat(GRID_Y, 1, NX, 1, batch_size)
-    grid = cat(gridx, gridy; dims = 1)
-    x_reshaped = permutedims(x, (3, 1, 2, 4))
+    x_reshaped = permutedims(x, (3, 1, 2, 4))                 # (C, NX, NY, B)
+    grid = repeat(GRID_XY, 1, 1, 1, batch_size)               # (2, NX, NY, B), one alloc
     return vcat(x_reshaped, grid)
 end
 
-# Conv unfolding for KAN conv layers
-struct Slicer
-    dh::Int
-    dw::Int
-    sh::Int
-    sw::Int
-    out_h::Int
-    out_w::Int
-end
-
-function (s::Slicer)(input, i, j)
-    h_start = (i - 1) * s.dh + 1
-    w_start = (j - 1) * s.dw + 1
-    h_indices = h_start:(s.sh):(h_start + s.sh * (s.out_h - 1))
-    w_indices = w_start:(s.sw):(w_start + s.sw * (s.out_w - 1))
-    slice = input[h_indices, w_indices, :, :]
-    return reshape(slice, 1, size(slice)...)
-end
-
-function unfold(input, kernel_size; stride = 1, padding = 0, dilation = 1)
-    H, W, C, N = size(input)
-    kh, kw = kernel_size
-    sh, sw = stride isa NTuple ? stride : (stride, stride)
-    ph, pw = padding isa NTuple ? padding : (padding, padding)
-    dh, dw = dilation isa NTuple ? dilation : (dilation, dilation)
-
-    out_h = div(H + 2ph - (dh * (kh - 1) + 1), sh) + 1
-    out_w = div(W + 2pw - (dw * (kw - 1) + 1), sw) + 1
-
-    slicer = Slicer(dh, dw, sh, sw, out_h, out_w)
-    padded_input = NNlib.pad_zeros(input, (ph, pw, 0, 0))
-
-    output = similar(input, 0, kw, out_h, out_w, C, N)
-
-    for i in 1:kh
-        inner_output = similar(input, 0, out_h, out_w, C, N)
-        for j in 1:kw
-            inner_output = cat(inner_output, slicer(padded_input, i, j); dims = 1)
-        end
-        inner_output = reshape(inner_output, 1, size(inner_output)...)
-        output = cat(output, inner_output; dims = 1)
-    end
-    return output
-end
+_conv_out_dim(in_dim, k, pad, stride, dilation) =
+    (in_dim + 2 * pad - dilation * (k - 1) - 1) ÷ stride + 1
