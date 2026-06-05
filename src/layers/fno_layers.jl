@@ -32,15 +32,12 @@ function (m::SpectralConv2d)(x, ps, st)
     modes1 = m.modes1
     modes2 = m.modes2
 
-    # rfft axis (dim 1): +ve low freqs at [1:modes1]
-    # full-FFT axis (dim 2): +ve low [1:modes2] and -ve low [end-modes2+1:end]
     out_pp = compl_mul2d(x_ft[1:modes1, 1:modes2, :, :], ps.w1)
     out_pn = compl_mul2d(x_ft[1:modes1, (end - modes2 + 1):end, :, :], ps.w2)
-
-    mid_pad_w = zeros(ComplexF32, modes1, W - 2 * modes2, m.out_channels, batch)
-    out_low = cat(out_pp, mid_pad_w, out_pn; dims = 2)
-    hi_pad = zeros(ComplexF32, ft_h - modes1, W, m.out_channels, batch)
-    out_ft = cat(out_low, hi_pad; dims = 1)
+    mid = zeros(ComplexF32, modes1, W - 2 * modes2, m.out_channels, batch)
+    out_low = cat(out_pp, mid, out_pn; dims = 2)
+    hi = zeros(ComplexF32, ft_h - modes1, W, m.out_channels, batch)
+    out_ft = cat(out_low, hi; dims = 1)
     return irfft(out_ft, H, [1, 2]), st
 end
 
