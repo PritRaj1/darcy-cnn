@@ -16,7 +16,7 @@ function KANCNN(cfg::KANCNNConfig)
         KANConvTranspose2D(8h, 4h, (3, 3), dw[1], da[1]; padding = 1, norm = cfg.norm),
         KANConvTranspose2D(4h, 2h, (3, 3), dw[2], da[2]; padding = 1, norm = cfg.norm),
         KANConvTranspose2D(2h, h, (3, 3), dw[3], da[3]; padding = 1, norm = cfg.norm),
-        KANConvTranspose2D(h, 1, (3, 3), dw[4], da[4]; padding = 1, norm = false),
+        KANConvTranspose2D(h, 1, (3, 3), dw[4], da[4]; padding = 1, norm = cfg.norm),
     ]
     return KANCNN(Lux.Chain(encoder_layers...), Lux.Chain(decoder_layers...))
 end

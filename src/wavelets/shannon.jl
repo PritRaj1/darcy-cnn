@@ -8,10 +8,12 @@ function Lux.initialparameters(rng::AbstractRNG, l::ShannonWavelet)
 end
 
 function _reactant_sinc(x)
-    mask = (x == zero(x)) * 1.0f0
-    safe_x = x + mask
-    pix = Float32(pi) * safe_x
-    return (one(x) - mask) * sin(pix) / pix + mask
+    pix = Float32(pi) * x
+    pix2 = pix * pix
+    taylor = 1.0f0 - pix2 / 6.0f0 + pix2 * pix2 / 120.0f0
+    direct = sin(pix) / (pix + eps(Float32))
+    w = exp(-pix2 / 8.0f0)
+    return w * taylor + (1.0f0 - w) * direct
 end
 
 function (l::ShannonWavelet)(x, ps, st)
